@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -21,21 +22,36 @@ func main() {
 		Usage: "go extension coverage tool",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "file",
-				Aliases:  []string{"f"},
-				Usage:    "coverage file",
-				Required: true,
+				Name:        "file",
+				Aliases:     []string{"f"},
+				Usage:       "coverage file",
+				Required:    false,
+				DefaultText: "coverage.out",
 			},
 			&cli.StringFlag{
-				Name:     "output",
-				Aliases:  []string{"o"},
-				Usage:    "output file",
-				Required: true,
+				Name:        "outputFile",
+				Aliases:     []string{"o"},
+				Usage:       "output file",
+				Required:    false,
+				DefaultText: "coverage.json",
+			},
+			&cli.StringFlag{
+				Name:     "outputDir",
+				Aliases:  []string{"d"},
+				Usage:    "output directory",
+				Required: false,
 			},
 		},
 		Action: func(c *cli.Context) error {
-			output := c.String("output")
-			profiles, err := cover.ParseProfiles(c.String("file"))
+			fileName := getOrDefault(c, "file", "coverage.out")
+			outputFile := getOrDefault(c, "outputFile", "coverage.json")
+			dir := c.String("outputDir")
+
+			if err := createDir(dir); err != nil {
+				return err
+			}
+
+			profiles, err := cover.ParseProfiles(fileName)
 			if err != nil {
 				return err
 			}
@@ -76,7 +92,7 @@ func main() {
 				return err
 			}
 
-			return ioutil.WriteFile(output, file, 0644)
+			return ioutil.WriteFile(path.Join(dir, outputFile), file, 0644)
 		},
 	}
 
@@ -84,6 +100,27 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getOrDefault(c *cli.Context, name string, defaultValue string) string {
+	if c.IsSet(name) {
+		return c.String(name)
+	}
+	return defaultValue
+}
+
+func createDir(dir string) error {
+	if dir == "" {
+		return nil
+	}
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.MkdirAll(dir, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func getOverallCoverage(profiles []*cover.Profile) (int64, int64, error) {
