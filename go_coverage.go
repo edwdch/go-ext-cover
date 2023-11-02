@@ -128,7 +128,9 @@ func getOverallCoverage(profiles []*cover.Profile) (int64, int64, error) {
 	for _, profile := range profiles {
 		for _, block := range profile.Blocks {
 			total += int64(block.NumStmt)
-			covered += int64(block.Count)
+			if block.Count > 0 {
+				covered += int64(block.NumStmt)
+			}
 		}
 	}
 	return total, covered, nil
